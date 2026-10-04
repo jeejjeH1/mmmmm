@@ -1,0 +1,9 @@
+node_modules/
+out/frames/
+out/parts/
+out/stills/
+out/tmp/
+out/preview*
+out/*.wav
+out/*.log
+*.log

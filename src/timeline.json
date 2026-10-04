@@ -1,0 +1,54 @@
+{
+  "bpm": 120,
+  "duration": 108,
+  "scenes": {
+    "hook": [
+      0,
+      8
+    ],
+    "decides": [
+      8,
+      14
+    ],
+    "layer": [
+      14,
+      20
+    ],
+    "agents": [
+      20,
+      32
+    ],
+    "problem": [
+      32,
+      42
+    ],
+    "verify": [
+      42,
+      50
+    ],
+    "genlayer": [
+      50,
+      58
+    ],
+    "question": [
+      58,
+      66
+    ],
+    "workflow": [
+      66,
+      80
+    ],
+    "trustless": [
+      80,
+      90
+    ],
+    "half": [
+      90,
+      98
+    ],
+    "outro": [
+      98,
+      108
+    ]
+  }
+}

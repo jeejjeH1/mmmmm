@@ -1,0 +1,21 @@
+{
+  "name": "genlayer-motion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Motion graphic for the GenLayer 'who verifies the agents?' tweet (1920x1080, 60fps)",
+  "type": "module",
+  "scripts": {
+    "audio": "python3 audio/synth.py",
+    "render": "node scripts/render.mjs",
+    "preview": "node scripts/preview.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}

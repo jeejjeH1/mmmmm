@@ -1,0 +1,182 @@
+@font-face { font-family: 'Space Grotesk'; font-weight: 400; src: url('/node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-weight: 500; src: url('/node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-weight: 600; src: url('/node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-weight: 700; src: url('/node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: url('/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 500; src: url('/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 700; src: url('/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 400; src: url('/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 600; src: url('/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+
+:root {
+  --pink: #ff87ff;
+  --purple: #dc00ff;
+  --blue: #8fdcff;
+  --green: #9dffc6;
+  --white: #f6f1ff;
+  --ink: #05020b;
+  --dim: rgba(246, 241, 255, 0.55);
+}
+
+html, body { margin: 0; padding: 0; background: var(--ink); overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+#gl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+#ui { position: absolute; inset: 0; overflow: hidden; }
+#flash, #fade { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+#flash { background: #fff; mix-blend-mode: normal; }
+#fade { background: #000; }
+
+.scene { position: absolute; inset: 0; display: none; }
+.persp { perspective: 1600px; perspective-origin: 50% 45%; }
+.abs { position: absolute; }
+.center { left: 0; right: 0; text-align: center; }
+
+/* ---------- typography ---------- */
+.txt { position: absolute; color: var(--white); font-family: 'Space Grotesk', sans-serif; font-weight: 700; perspective: 900px; }
+.txt .w { display: inline-block; white-space: nowrap; transform-style: preserve-3d; }
+.txt .ch { display: inline-block; transform-origin: 50% 85%; backface-visibility: hidden; }
+.ch.grad { -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+.t-g { color: var(--green); }
+.t-b { color: var(--blue); }
+.t-p { color: var(--pink); }
+.t-v { color: var(--purple); }
+.t-w { color: #fff; }
+.t-d { color: var(--dim); }
+
+.h0 { font-size: 168px; line-height: 0.98; letter-spacing: -0.045em; }
+.h1 { font-size: 118px; line-height: 1.02; letter-spacing: -0.04em; }
+.h2 { font-size: 84px; line-height: 1.06; letter-spacing: -0.03em; }
+.h3 { font-size: 58px; line-height: 1.14; letter-spacing: -0.02em; font-weight: 600; }
+.h4 { font-size: 42px; line-height: 1.2; letter-spacing: -0.01em; font-weight: 500; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.label { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 20px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--dim); }
+.glow-w { filter: drop-shadow(0 0 22px rgba(220, 0, 255, 0.45)); }
+.glow-p { filter: drop-shadow(0 0 26px rgba(255, 135, 255, 0.55)); }
+.glow-g { filter: drop-shadow(0 0 24px rgba(157, 255, 198, 0.5)); }
+.glow-b { filter: drop-shadow(0 0 24px rgba(143, 220, 255, 0.5)); }
+
+/* ---------- glass card ---------- */
+.glass {
+  position: absolute;
+  border-radius: 26px;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(160deg, rgba(34, 18, 58, 0.82), rgba(10, 5, 22, 0.86)) padding-box,
+    linear-gradient(135deg, rgba(255, 135, 255, 0.85), rgba(220, 0, 255, 0.35) 40%, rgba(143, 220, 255, 0.55) 100%) border-box;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.65), 0 0 90px rgba(220, 0, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--white);
+}
+.glass.blue { background:
+    linear-gradient(160deg, rgba(16, 26, 52, 0.84), rgba(6, 8, 20, 0.88)) padding-box,
+    linear-gradient(135deg, rgba(143, 220, 255, 0.9), rgba(143, 220, 255, 0.2) 45%, rgba(157, 255, 198, 0.6)) border-box; box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 80px rgba(143,220,255,0.16), inset 0 1px 0 rgba(255,255,255,0.12); }
+.glass.green { background:
+    linear-gradient(160deg, rgba(14, 40, 34, 0.84), rgba(5, 14, 12, 0.88)) padding-box,
+    linear-gradient(135deg, rgba(157, 255, 198, 0.95), rgba(157, 255, 198, 0.2) 45%, rgba(143, 220, 255, 0.6)) border-box; box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 80px rgba(157,255,198,0.18), inset 0 1px 0 rgba(255,255,255,0.12); }
+.glass.pink { background:
+    linear-gradient(160deg, rgba(52, 12, 52, 0.85), rgba(18, 4, 20, 0.9)) padding-box,
+    linear-gradient(135deg, rgba(255, 135, 255, 1), rgba(255, 135, 255, 0.25) 45%, rgba(220, 0, 255, 0.8)) border-box; box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 90px rgba(255,135,255,0.22), inset 0 1px 0 rgba(255,255,255,0.12); }
+
+/* ---------- terminal ---------- */
+.term { width: 900px; height: 470px; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+.term-bar { height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 26px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 20px; }
+.term-bar i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); display: inline-block; }
+.term-bar i:nth-child(1) { background: var(--pink); }
+.term-bar i:nth-child(2) { background: var(--purple); }
+.term-bar i:nth-child(3) { background: var(--blue); }
+.term-title { margin-left: 14px; color: var(--white); opacity: 0.85; letter-spacing: 0.02em; }
+.badge { margin-left: auto; font-size: 15px; letter-spacing: 0.2em; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(143, 220, 255, 0.5); color: var(--blue); }
+.term-body { padding: 26px 34px 0 34px; font-size: 25px; line-height: 1.75; color: rgba(246, 241, 255, 0.92); white-space: pre; }
+.term-body .k { color: var(--blue); }
+.term-body .p { color: var(--pink); }
+.term-body .g { color: var(--green); }
+.term-body .d { color: rgba(246, 241, 255, 0.45); }
+.cursor { display: inline-block; width: 13px; height: 28px; background: var(--green); vertical-align: -5px; margin-left: 3px; box-shadow: 0 0 12px var(--green); }
+.term-progress { position: absolute; left: 34px; right: 34px; bottom: 34px; display: flex; align-items: center; gap: 20px; font-size: 18px; letter-spacing: 0.2em; color: var(--dim); }
+.term-progress .bar { flex: 1; height: 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.term-progress .fill { height: 100%; width: 0%; border-radius: 10px; background: linear-gradient(90deg, var(--blue), var(--green)); box-shadow: 0 0 18px rgba(157, 255, 198, 0.8); }
+.term-progress .pct { width: 76px; text-align: right; color: var(--white); letter-spacing: 0.05em; font-size: 22px; }
+
+.stamp { position: absolute; display: flex; align-items: center; gap: 18px; padding: 18px 32px 18px 22px; border-radius: 18px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 40px; letter-spacing: 0.02em; white-space: nowrap; }
+.stamp.ok { color: #04140c; background: linear-gradient(135deg, #c9ffe2, var(--green) 50%, #6fe9ff); box-shadow: 0 0 60px rgba(157, 255, 198, 0.55), 0 20px 50px rgba(0, 0, 0, 0.5); }
+.stamp.bad { color: #1a0219; background: linear-gradient(135deg, #ffd0ff, var(--pink) 50%, var(--purple)); box-shadow: 0 0 70px rgba(255, 135, 255, 0.6), 0 20px 50px rgba(0, 0, 0, 0.5); }
+.stamp.q { color: var(--white); background: rgba(20, 6, 30, 0.9); border: 2px dashed rgba(255, 135, 255, 0.85); box-shadow: 0 0 50px rgba(255, 135, 255, 0.35); }
+.stamp svg { width: 44px; height: 44px; }
+
+.hair { position: absolute; left: 0; top: 539px; width: 1920px; height: 2px; background: linear-gradient(90deg, transparent, var(--pink) 25%, #fff 50%, var(--blue) 75%, transparent); box-shadow: 0 0 24px #fff, 0 0 60px var(--purple); transform-origin: 50% 50%; }
+.lid { position: absolute; left: 0; width: 1920px; height: 540px; background: #000; }
+
+/* ---------- misc ---------- */
+.pill { position: absolute; padding: 16px 30px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 26px; letter-spacing: 0.06em; white-space: nowrap; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.icon { width: 64px; height: 64px; }
+svg.stroke { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- stack labels ---------- */
+.stack-label { left: 0; top: 0; display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 19px; letter-spacing: 0.12em; white-space: nowrap; padding: 8px 14px 8px 12px; border-radius: 10px; background: rgba(8, 4, 16, 0.55); border: 1px solid rgba(255, 255, 255, 0.08); }
+.stack-label .dot { width: 10px; height: 10px; }
+
+/* ---------- role cards ---------- */
+.role { width: 580px; height: 156px; display: flex; align-items: center; gap: 26px; padding: 0 30px; box-sizing: border-box; }
+.role .ico { width: 96px; height: 96px; border-radius: 26px; display: grid; place-items: center; flex: none; }
+.role .ico svg { width: 54px; height: 54px; }
+.role .meta { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 20px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 8px; }
+.role .main { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 46px; letter-spacing: -0.02em; white-space: nowrap; color: var(--white); }
+.tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 9px; font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 0.06em; color: rgba(246, 241, 255, 0.78); white-space: nowrap; padding: 6px 11px; border-radius: 8px; background: rgba(8, 4, 18, 0.6); border: 1px solid rgba(143, 220, 255, 0.22); }
+.tag .dot { width: 8px; height: 8px; }
+.ring { position: absolute; left: 0; top: 0; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 2px solid currentColor; box-shadow: 0 0 18px currentColor, inset 0 0 12px currentColor; }
+.vignette-center { position: absolute; inset: 0; background: radial-gradient(ellipse 52% 40% at 50% 50%, rgba(5, 2, 11, 0.78), rgba(5, 2, 11, 0) 70%); }
+
+/* ---------- answer card ---------- */
+.answer { width: 1120px; height: 330px; box-sizing: border-box; padding: 34px 46px; font-family: 'Space Grotesk', sans-serif; overflow: hidden; }
+.answer .row { display: flex; align-items: center; gap: 16px; font-family: 'JetBrains Mono', monospace; font-size: 20px; letter-spacing: 0.16em; color: var(--dim); }
+.answer .row .chip { padding: 6px 12px; border-radius: 8px; background: rgba(143, 220, 255, 0.12); color: var(--blue); letter-spacing: 0.08em; }
+.answer .quote { margin-top: 30px; font-size: 54px; font-weight: 600; letter-spacing: -0.02em; color: var(--white); white-space: nowrap; position: relative; display: inline-block; }
+.answer .num { position: relative; display: inline-block; }
+.answer .strike { position: absolute; left: -4px; right: -4px; top: 52%; height: 6px; border-radius: 4px; background: var(--pink); box-shadow: 0 0 16px var(--pink); transform-origin: 0 50%; }
+.answer .fix { position: absolute; left: 0; top: -40px; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; color: var(--green); letter-spacing: 0.04em; white-space: nowrap; text-shadow: 0 0 12px rgba(157,255,198,0.6); }
+.answer .conf { position: absolute; left: 46px; right: 46px; bottom: 42px; display: flex; align-items: center; gap: 22px; font-family: 'JetBrains Mono', monospace; font-size: 20px; letter-spacing: 0.18em; color: var(--dim); }
+.answer .conf .bar { flex: 1; height: 16px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.answer .conf .fill { height: 100%; width: 0; border-radius: 10px; }
+.answer .conf .pct { font-size: 40px; font-weight: 700; letter-spacing: 0; color: var(--white); width: 150px; text-align: right; font-family: 'Space Grotesk', sans-serif; }
+.answer .scanl { position: absolute; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, transparent, #ff87ff 20%, #fff 50%, #ff87ff 80%, transparent); box-shadow: 0 0 30px #ff87ff, 0 0 60px #dc00ff; }
+.answer .tint { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 135, 255, 0.18), rgba(255, 135, 255, 0)); pointer-events: none; }
+
+/* ---------- verify scene ---------- */
+.orb { position: absolute; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; display: grid; place-items: center; color: var(--blue);
+  background: radial-gradient(circle at 50% 40%, rgba(143, 220, 255, 0.35), rgba(143, 220, 255, 0.06) 60%, rgba(143, 220, 255, 0) 72%);
+  box-shadow: inset 0 0 0 2px rgba(143, 220, 255, 0.55), 0 0 60px rgba(143, 220, 255, 0.35), inset 0 0 50px rgba(143, 220, 255, 0.25); }
+.orb svg { width: 96px; height: 96px; filter: drop-shadow(0 0 10px rgba(143, 220, 255, 0.8)); }
+.cap { position: absolute; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 22px; letter-spacing: 0.2em; color: var(--dim); white-space: nowrap; transform: translateX(-50%); }
+.doc { position: absolute; width: 250px; height: 310px; margin: -155px 0 0 -125px; box-sizing: border-box; padding: 26px 24px; }
+.doc .dh { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 19px; color: var(--white); }
+.doc .dh svg { width: 30px; height: 30px; color: var(--blue); }
+.doc .ln { height: 10px; border-radius: 6px; background: rgba(246, 241, 255, 0.16); margin-top: 16px; }
+.doc .chip { position: absolute; left: 24px; bottom: 24px; padding: 7px 12px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 18px; background: rgba(157, 255, 198, 0.12); color: var(--green); letter-spacing: 0.06em; }
+.vlabel { position: absolute; left: 0; top: 0; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 18px; letter-spacing: 0.14em; white-space: nowrap; padding: 7px 12px; border-radius: 9px; background: rgba(8, 4, 18, 0.66); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+/* ---------- question scene ---------- */
+.qcard { display: flex; align-items: center; gap: 26px; padding: 26px 40px 26px 30px; border-radius: 26px; white-space: nowrap; }
+.qcard .qi { width: 74px; height: 74px; border-radius: 20px; display: grid; place-items: center; color: var(--blue); background: rgba(143, 220, 255, 0.1); box-shadow: inset 0 0 0 1.5px rgba(143, 220, 255, 0.45); }
+.qcard .qi svg { width: 44px; height: 44px; }
+.qcard .qt { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 62px; letter-spacing: -0.02em; color: var(--white); position: relative; }
+.qcard .qb { margin-left: 26px; font-family: 'JetBrains Mono', monospace; font-size: 22px; padding: 8px 14px; border-radius: 10px; color: var(--green); background: rgba(157, 255, 198, 0.1); letter-spacing: 0.06em; }
+.qstrike { position: absolute; left: -6px; right: -6px; top: 54%; height: 6px; border-radius: 4px; background: var(--pink); box-shadow: 0 0 14px var(--pink); transform-origin: 0 50%; }
+.chip { position: absolute; display: flex; align-items: center; gap: 12px; padding: 12px 22px 12px 14px; border-radius: 14px; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 26px; letter-spacing: 0.02em; white-space: nowrap; color: var(--green); background: rgba(157, 255, 198, 0.08); border: 1.5px solid rgba(157, 255, 198, 0.4); box-shadow: 0 0 30px rgba(157, 255, 198, 0.12); }
+.chip svg { width: 30px; height: 30px; }
+.door { position: absolute; display: flex; align-items: center; gap: 18px; padding: 18px 34px 18px 20px; border-radius: 22px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 50px; letter-spacing: -0.02em; white-space: nowrap; }
+.door .di { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; }
+.door .di svg { width: 40px; height: 40px; }
+
+/* ---------- workflow ---------- */
+.stage { position: absolute; width: 440px; margin-left: -220px; text-align: center; }
+.stage .badge2 { position: relative; width: 176px; height: 176px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; }
+.stage .badge2 svg { width: 82px; height: 82px; }
+.stage .st { margin-top: 40px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 58px; letter-spacing: -0.025em; color: var(--white); }
+.stage .ss { margin: 8px auto 0; max-width: 340px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 34px; line-height: 1.18; letter-spacing: -0.01em; color: var(--dim); }
+.stage .num { position: absolute; left: 50%; top: -48px; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 20px; letter-spacing: 0.2em; color: var(--dim); }
+.vdot { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 20px; color: #06140d; }
+.vdot svg { width: 22px; height: 22px; }
+.blk { position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 12px; border: 2px solid var(--pink); background: rgba(255, 135, 255, 0.12); box-shadow: 0 0 18px rgba(255, 135, 255, 0.45); }
+.packet { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #fff; box-shadow: 0 0 18px #fff, 0 0 40px currentColor, 0 0 80px currentColor; }
+.ptag { position: absolute; font-family: 'JetBrains Mono', monospace; font-size: 18px; letter-spacing: 0.06em; color: var(--white); white-space: nowrap; padding: 5px 10px; border-radius: 8px; background: rgba(8, 4, 18, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); transform: translate(-50%, -54px); }
+.verdict { position: absolute; padding: 10px 22px; border-radius: 14px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 34px; letter-spacing: 0.04em; white-space: nowrap; transform: translate(-50%, -50%); }
