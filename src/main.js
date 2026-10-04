@@ -45,7 +45,8 @@ async function init() {
   const flash = document.getElementById('flash');
   const fade = document.getElementById('fade');
 
-  window.renderFrame = (t) => {
+  // jx/jy: sub-pixel camera jitter used when several samples are blended per frame.
+  window.renderFrame = (t, jx = 0, jy = 0) => {
     ctx.fx = { time: t, bloom: 0.85, bloomRadius: 0.55, bloomThreshold: 0.12, glitch: 0, flash: 0, chroma: 0, vignette: 0.6, grain: 0.012, fade: 1, uiFlash: 0, uiFlashColor: '#ffffff', uiFade: 0 };
     ctx.bgp = { dust: 1, nebula: 1, floor: 0, floorY: -3, floorFade: 0.045, floorC1: '#dc00ff', floorC2: '#8fdcff' };
     camera.clearViewOffset();
@@ -61,6 +62,12 @@ async function init() {
       if (active) s.update(t);
     }
     bg.update(t);
+    if (jx || jy) {
+      const v = camera.view;
+      if (v && v.enabled) camera.setViewOffset(v.fullWidth, v.fullHeight, v.offsetX + (jx * v.fullWidth) / W, v.offsetY + (jy * v.fullHeight) / H, v.width, v.height);
+      else camera.setViewOffset(W, H, jx, jy, W, H);
+      camera.updateProjectionMatrix();
+    }
     flash.style.opacity = clamp(ctx.fx.uiFlash).toFixed(3);
     flash.style.background = ctx.fx.uiFlashColor;
     fade.style.opacity = clamp(ctx.fx.uiFade).toFixed(3);

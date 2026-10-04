@@ -4,6 +4,12 @@
 //   node scripts/render.mjs --stills 1.5,8,20.25          # PNG stills to out/stills
 //   node scripts/render.mjs --from 0 --to 10 --fps 30     # quick preview clip
 //   node scripts/render.mjs --fps 60 --workers 3 --audio out/soundtrack.wav --out out/genlayer-motion.mp4
+//
+// Highest quality: two jittered samples per frame (120 samples/s blended to 60 fps:
+// motion blur + anti-aliasing), lossless PNG capture, two-pass encode at a fixed bitrate.
+//   node scripts/render.mjs --sub 2 --png --parts out/parts_hq --no-encode
+//   node scripts/render.mjs --parts out/parts_hq --encode-only --audio out/soundtrack.wav \
+//     --vbitrate 7000k --abitrate 256k --preset veryslow --out out/genlayer-motion.mp4
 import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -26,9 +32,14 @@ const WORKERS = Number(args.workers ?? 3);
 const SCALE = Number(args.scale ?? 1);
 const OUT = path.resolve(ROOT, args.out ?? 'out/genlayer-motion.mp4');
 const AUDIO = args.audio ? path.resolve(ROOT, args.audio) : null;
-const PARTS = path.join(ROOT, 'out/parts');
+const PARTS = path.resolve(ROOT, args.parts ?? 'out/parts');
 const STILL = Boolean(args.stills);
 const JPEG_Q = Number(args.jpeg ?? 95);
+const SUB = Number(args.sub ?? 1); // samples blended into each output frame
+const PNG = Boolean(args.png);
+// Sub-pixel camera jitter per sample (rotated grid), in output pixels.
+const JITTER = { 1: [[0, 0]], 2: [[-0.25, -0.25], [0.25, 0.25]], 4: [[-0.375, -0.125], [0.125, -0.375], [0.375, 0.125], [-0.125, 0.375]] }[SUB];
+if (!JITTER) throw new Error('--sub must be 1, 2 or 4');
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
 function serve() {
@@ -58,9 +69,9 @@ async function openPage(port) {
   await page.goto(`http://localhost:${port}/src/index.html?scale=${SCALE}`);
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 120000 });
   const cdp = await page.context().newCDPSession(page);
-  const grab = async (t) => {
-    await page.evaluate((tt) => window.renderFrame(tt), t);
-    const r = await cdp.send('Page.captureScreenshot', STILL ? { format: 'png', optimizeForSpeed: true } : { format: 'jpeg', quality: JPEG_Q });
+  const grab = async (t, jx = 0, jy = 0) => {
+    await page.evaluate(([tt, x, y]) => window.renderFrame(tt, x, y), [t, jx, jy]);
+    const r = await cdp.send('Page.captureScreenshot', STILL || PNG ? { format: 'png', optimizeForSpeed: true } : { format: 'jpeg', quality: JPEG_Q });
     return Buffer.from(r.data, 'base64');
   };
   return { browser, page, grab };
@@ -71,7 +82,11 @@ async function openPage(port) {
 const BT709 = ['-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
 
 function ffmpegPart(file) {
-  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-vf', 'zscale=matrixin=470bg:rangein=full:matrix=709:range=limited,format=yuv444p', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '10', ...BT709, file], { stdio: ['pipe', 'inherit', 'inherit'] });
+  // Decode to RGB, blend the SUB samples of each frame, then convert once to BT.709.
+  const blend = SUB > 1 ? `tmix=frames=${SUB}:weights=${Array(SUB).fill(1).join(' ')},select='eq(mod(n\\,${SUB})\\,${SUB - 1})',setpts=N/(${FPS}*TB),` : '';
+  const vf = `format=gbrp,${blend}zscale=matrix=709:range=limited,format=yuv444p`;
+  const icrf = args.icrf ?? (PNG || SUB > 1 ? '6' : '10');
+  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS * SUB), '-c:v', PNG ? 'png' : 'mjpeg', '-i', '-', '-vf', vf, '-r', String(FPS), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', icrf, ...BT709, file], { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise((res, rej) => ff.on('close', (c) => (c === 0 ? res() : rej(new Error('ffmpeg exit ' + c)))));
   return { ff, done };
 }
@@ -100,6 +115,10 @@ async function main() {
 
   const total = Math.round((TO - FROM) * FPS);
   fs.mkdirSync(PARTS, { recursive: true });
+  if (args['encode-only']) {
+    srv.close();
+    return encode(path.join(PARTS, 'list.txt'), Date.now());
+  }
   const per = Math.ceil(total / WORKERS);
   const t0 = Date.now();
   let doneFrames = 0;
@@ -114,8 +133,10 @@ async function main() {
         const { browser, grab } = await openPage(port);
         const { ff, done } = ffmpegPart(file);
         for (let f = a; f < b; f++) {
-          const png = await grab(FROM + f / FPS);
-          await write(ff.stdin, png);
+          for (let s = 0; s < SUB; s++) {
+            const png = await grab(FROM + (f + s / SUB) / FPS, JITTER[s][0], JITTER[s][1]);
+            await write(ff.stdin, png);
+          }
           doneFrames++;
           if (doneFrames % 120 === 0) {
             const el = (Date.now() - t0) / 1000;
@@ -134,12 +155,28 @@ async function main() {
   srv.close();
   const list = path.join(PARTS, 'list.txt');
   fs.writeFileSync(list, files.map((f) => `file '${f}'`).join('\n'));
-  const enc = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list];
-  if (AUDIO) enc.push('-ss', String(FROM), '-t', String(TO - FROM), '-i', AUDIO);
-  enc.push('-map', '0:v');
-  if (AUDIO) enc.push('-map', '1:a', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000');
-  enc.push('-c:v', 'libx264', '-preset', args.preset ?? 'slow', '-crf', args.crf ?? '18', '-profile:v', 'high', '-level', '4.2', '-pix_fmt', 'yuv420p', ...BT709, '-maxrate', args.maxrate ?? '16M', '-bufsize', args.bufsize ?? '32M', '-g', String(FPS * 2), '-movflags', '+faststart', '-r', String(FPS), OUT);
-  await new Promise((res, rej) => spawn('ffmpeg', enc, { stdio: 'inherit' }).on('close', (c) => (c === 0 ? res() : rej(new Error('final encode failed')))));
+  if (args['no-encode']) return console.log(`rendered: ${path.relative(ROOT, list)} in ${((Date.now() - t0) / 60000).toFixed(1)} min`);
+  await encode(list, t0);
+}
+
+const run = (a) => new Promise((res, rej) => spawn('ffmpeg', a, { stdio: 'inherit' }).on('close', (c) => (c === 0 ? res() : rej(new Error('ffmpeg failed: ' + c)))));
+
+// Final H.264 encode. With --vbitrate it is a two-pass encode at that average
+// bitrate (to fill a size budget); otherwise single-pass CRF.
+async function encode(list, t0) {
+  const input = ['-f', 'concat', '-safe', '0', '-i', list];
+  const audioIn = AUDIO ? ['-ss', String(FROM), '-t', String(TO - FROM), '-i', AUDIO] : [];
+  const v = ['-c:v', 'libx264', '-preset', args.preset ?? 'slow', '-profile:v', 'high', '-level', '4.2', '-pix_fmt', 'yuv420p', ...BT709, '-g', String(FPS * 2), '-r', String(FPS)];
+  if (args.vbitrate) {
+    const kb = parseInt(args.vbitrate, 10);
+    v.push('-b:v', `${kb}k`, '-maxrate', `${kb * 2}k`, '-bufsize', `${kb * 4}k`, '-aq-mode', '3', '-psy-rd', '1.0:0.15', '-deblock', '-1:-1', '-passlogfile', path.join(PARTS, 'x264pass'));
+    await run(['-y', '-loglevel', 'error', ...input, ...v, '-pass', '1', '-an', '-f', 'null', '/dev/null']);
+    v.push('-pass', '2');
+  } else {
+    v.push('-crf', args.crf ?? '18', '-maxrate', args.maxrate ?? '16M', '-bufsize', args.bufsize ?? '32M');
+  }
+  const a = AUDIO ? ['-map', '1:a', '-c:a', 'aac', '-b:a', args.abitrate ?? '320k', '-ar', '48000'] : [];
+  await run(['-y', '-loglevel', 'error', ...input, ...audioIn, '-map', '0:v', ...a, ...v, '-movflags', '+faststart', OUT]);
   console.log(`done: ${path.relative(ROOT, OUT)} in ${((Date.now() - t0) / 60000).toFixed(1)} min`);
 }
 
