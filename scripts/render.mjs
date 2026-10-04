@@ -119,42 +119,47 @@ async function main() {
     srv.close();
     return encode(path.join(PARTS, 'list.txt'), Date.now());
   }
-  const per = Math.ceil(total / WORKERS);
+  // Resumable: the range is cut into segments; a finished segment is renamed into
+  // place, so a restarted run skips everything already on disk.
+  const segLen = Math.round(Number(args.seg ?? 2) * FPS);
+  const segs = [];
+  for (let a = 0; a < total; a += segLen) segs.push({ a, b: Math.min(total, a + segLen), file: path.join(PARTS, `seg_${String(segs.length).padStart(3, '0')}.mkv`) });
+  const todo = segs.filter((g) => !fs.existsSync(g.file));
   const t0 = Date.now();
   let doneFrames = 0;
-  const jobs = [];
-  for (let w = 0; w < WORKERS; w++) {
-    const a = w * per;
-    const b = Math.min(total, a + per);
-    if (a >= b) break;
-    const file = path.join(PARTS, `part_${String(w).padStart(2, '0')}.mkv`);
-    jobs.push(
+  const todoFrames = todo.reduce((n, g) => n + g.b - g.a, 0);
+  console.log(`${segs.length - todo.length}/${segs.length} segments already done; rendering ${todoFrames} frames`);
+  const queue = [...todo];
+  const workers = [];
+  for (let w = 0; w < Math.min(WORKERS, queue.length); w++) {
+    workers.push(
       (async () => {
         const { browser, grab } = await openPage(port);
-        const { ff, done } = ffmpegPart(file);
-        for (let f = a; f < b; f++) {
-          for (let s = 0; s < SUB; s++) {
-            const png = await grab(FROM + (f + s / SUB) / FPS, JITTER[s][0], JITTER[s][1]);
-            await write(ff.stdin, png);
+        let g;
+        while ((g = queue.shift())) {
+          const tmp = g.file.replace(/\.mkv$/, '.tmp.mkv');
+          const { ff, done } = ffmpegPart(tmp);
+          for (let f = g.a; f < g.b; f++) {
+            for (let s = 0; s < SUB; s++) {
+              const png = await grab(FROM + (f + s / SUB) / FPS, JITTER[s][0], JITTER[s][1]);
+              await write(ff.stdin, png);
+            }
+            doneFrames++;
           }
-          doneFrames++;
-          if (doneFrames % 120 === 0) {
-            const el = (Date.now() - t0) / 1000;
-            const eta = (el / doneFrames) * (total - doneFrames);
-            console.log(`${doneFrames}/${total} frames  ${(el / doneFrames * 1000).toFixed(0)}ms/frame(eff)  eta ${(eta / 60).toFixed(1)}min`);
-          }
+          ff.stdin.end();
+          await done;
+          fs.renameSync(tmp, g.file);
+          const el = (Date.now() - t0) / 1000;
+          console.log(`${path.basename(g.file)} done  ${doneFrames}/${todoFrames} frames  eta ${((el / doneFrames) * (todoFrames - doneFrames) / 60).toFixed(1)}min`);
         }
-        ff.stdin.end();
-        await done;
         await browser.close();
-        return file;
       })(),
     );
   }
-  const files = await Promise.all(jobs);
+  await Promise.all(workers);
   srv.close();
   const list = path.join(PARTS, 'list.txt');
-  fs.writeFileSync(list, files.map((f) => `file '${f}'`).join('\n'));
+  fs.writeFileSync(list, segs.map((g) => `file '${g.file}'`).join('\n'));
   if (args['no-encode']) return console.log(`rendered: ${path.relative(ROOT, list)} in ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   await encode(list, t0);
 }
