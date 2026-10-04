@@ -153,7 +153,7 @@ export default function agents(ctx) {
       const dx = (c.R.side === 'r' ? -1 : 1) * (1 - e) * 120;
       setStyle(c.wrap, { opacity: a.toFixed(3), transform: `translate(${dx.toFixed(1)}px, ${(noise1(t * 0.5, i) * 6).toFixed(1)}px) scale(${lerp(0.9, 1, e).toFixed(3)})` });
       const p = worldToScreen(camera, net.nodes[c.node]);
-      const ax = c.R.side === 'r' ? c.R.x + 580 : c.R.x;
+      const ax = c.R.side === 'r' ? c.left + c.w : c.left;
       const ay = c.R.y + 78;
       const lk = prog(t, c.t0 + 0.15, c.t0 + 0.6, ease.outCubic);
       const ex = lerp(ax, p.x, lk);
@@ -172,5 +172,15 @@ export default function agents(ctx) {
     });
   }
 
-  return { start, end, root, group, update, layout: () => [t1, t2].forEach((x) => x.layoutGradients()) };
+  // Cards size to their text; right-column cards keep their right edge.
+  function layout() {
+    [t1, t2].forEach((x) => x.layoutGradients());
+    cards.forEach((c) => {
+      c.w = c.card.offsetWidth;
+      c.left = c.R.side === 'r' ? c.R.x : c.R.x + 580 - c.w;
+      c.wrap.style.left = `${c.left}px`;
+    });
+  }
+
+  return { start, end, root, group, update, layout };
 }

@@ -1,6 +1,6 @@
 node_modules/
 out/frames/
-out/parts/
+out/parts*/
 out/stills/
 out/tmp/
 out/preview*

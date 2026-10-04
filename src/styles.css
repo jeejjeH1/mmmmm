@@ -116,7 +116,7 @@ svg.stroke { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .stack-label .dot { width: 10px; height: 10px; }
 
 /* ---------- role cards ---------- */
-.role { width: 580px; height: 156px; display: flex; align-items: center; gap: 26px; padding: 0 30px; box-sizing: border-box; }
+.role { width: max-content; min-width: 540px; height: 156px; display: flex; align-items: center; gap: 26px; padding: 0 44px 0 30px; box-sizing: border-box; }
 .role .ico { width: 96px; height: 96px; border-radius: 26px; display: grid; place-items: center; flex: none; }
 .role .ico svg { width: 54px; height: 54px; }
 .role .meta { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 20px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 8px; }
